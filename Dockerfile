@@ -7,11 +7,12 @@ ARG THEORA_VERSION=1.1.1
 ARG THEORA_URL="https://downloads.xiph.org/releases/theora/libtheora-$THEORA_VERSION.tar.bz2"
 ARG THEORA_SHA256=b6ae1ee2fa3d42ac489287d3ec34c5885730b1296f0801ae577a35193d3affbc
 
-FROM ghcr.io/ffbuilds/static-libogg:main as libogg
+# Must be specified
+ARG ALPINE_VERSION
 
-# bump: alpine /FROM alpine:([\d.]+)/ docker:alpine|^3
-# bump: alpine link "Release notes" https://alpinelinux.org/posts/Alpine-$LATEST-released.html
-FROM alpine:3.16.2 AS base
+FROM ghcr.io/ffbuilds/static-libogg-alpine_${ALPINE_VERSION}:main as libogg
+
+FROM alpine:${ALPINE_VERSION} AS base
 
 FROM base AS download
 ARG THEORA_URL
@@ -36,11 +37,22 @@ COPY --from=libogg /usr/local/include/ogg/ /usr/local/include/ogg/
 WORKDIR /tmp/theora
 RUN \
   apk add --no-cache --virtual build \
-    build-base && \
+    build-base pkgconf && \
   # --build=$(arch)-unknown-linux-gnu helps with guessing the correct build. For some reason,
   # build script can't guess the build type in arm64 (hardware and emulated) environment.
   ./configure --build=$(arch)-unknown-linux-gnu --disable-examples --disable-oggtest --disable-shared --enable-static && \
   make -j$(nproc) install && \
+  # Sanity tests
+  pkg-config --exists --modversion --path theora && \
+  pkg-config --exists --modversion --path theoraenc && \
+  pkg-config --exists --modversion --path theoradec && \
+  ar -t /usr/local/lib/libtheora.a && \
+  ar -t /usr/local/lib/libtheoraenc.a && \
+  ar -t /usr/local/lib/libtheoradec.a && \
+  readelf -h /usr/local/lib/libtheora.a && \
+  readelf -h /usr/local/lib/libtheoraenc.a && \
+  readelf -h /usr/local/lib/libtheoradec.a && \
+  # Cleanup
   apk del build
 
 FROM scratch
