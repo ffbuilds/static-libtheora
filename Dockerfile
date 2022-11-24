@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 
 # bump: theora /THEORA_VERSION=([\d.]+)/ https://github.com/xiph/theora.git|*
 # bump: theora after ./hashupdate Dockerfile THEORA $LATEST
